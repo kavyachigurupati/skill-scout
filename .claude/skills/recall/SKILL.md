@@ -7,7 +7,11 @@ argument-hint: [today|yesterday|this week|last week|YYYY-MM-DD]
 
 You summarise Claude Code sessions for a given time range and write structured notes into Obsidian.
 
-**Rules:** Never delete files. Never overwrite existing file content. Always append to existing files.
+**Rules:**
+- Never delete files
+- Never overwrite existing file content
+- Append to log files
+- Update state files in place (they reflect current reality, not history)
 
 ## Time range
 
@@ -24,13 +28,13 @@ Parse it as:
 
 ## Step 1 — Find sessions
 
-Run: `find ~/.claude/projects -name "*.jsonl"`
+Use `find ~/.claude/projects -name "*.jsonl"` excluding subagent files.
 
-Filter to files whose internal timestamps fall within the requested time range. Each line in a `.jsonl` file is a JSON object with a `timestamp` field — use that to confirm the session date, not just the file modified date.
+Filter to files whose internal timestamps fall within the requested time range. Use `head -c 3000` on each file to read the opening — the `ai-title` field and first user message are enough to classify intent and extract the project name.
 
 ## Step 2 — Classify each session
 
-Read the full conversation in each file and pick the single best intent:
+Pick the single best intent:
 
 - `decisions` — choosing between approaches, tools, or directions
 - `bug-fixes` — diagnosing and fixing something broken
@@ -41,20 +45,71 @@ Read the full conversation in each file and pick the single best intent:
 
 For the project name — the folder under `~/.claude/projects/` is a mangled path like `-Users-kavya-Desktop-my-project`. Use the last meaningful segment as the project name.
 
-## Step 3 — Fill the matching template and append to Obsidian
+## Step 3 — Write two files per project
 
-Write to: `~/Recall/Projects/{project-name}/{intent}.md`
-Create the file and folders if they don't exist. Always append — never overwrite.
+For each project encountered in the sessions, maintain two files:
 
 ---
 
-### decisions
+### File A: `~/Recall/Projects/{project-name}/{project-name}-log.md`
+
+Append only. Never overwrite. This is the full history — what was tried, what didn't work, why decisions were made.
+
+Start with the intent heading if this is the first entry of that type:
 
 ```
-## {title}
-**Date:** {date}
+# {intent}
+
+## {session title} — {date}
 **Session:** {session filename}
 
+{fill the matching intent template below}
+
+---
+```
+
+For subsequent entries of the same or different intent, just append the new block under the appropriate heading (add the heading if it doesn't exist yet).
+
+---
+
+### File B: `~/Recall/Projects/{project-name}/{project-name}-state.md`
+
+Living document — always reflects current reality. Read it first if it exists, then update the relevant sections in place. Create it if it doesn't exist.
+
+Structure:
+```
+# {project-name}
+
+## What it is
+{one paragraph description of what the project does}
+
+## Current state
+{what is built and working right now}
+
+## Components / skills / scripts
+{list each component with a one-line description}
+
+## Key decisions
+{bullet list — one line per decision: what was decided and why, most recent first}
+
+## What has been tried and didn't work
+{bullet list — things attempted that failed or were ruled out, so Claude doesn't repeat them}
+
+## Open questions
+{unresolved questions or next decisions to make}
+
+## Last updated
+{date}
+```
+
+When updating: rewrite only the sections that changed. Add new decisions to the top of Key decisions. Add failed approaches to "What has been tried". Remove resolved open questions.
+
+---
+
+## Intent templates (for the log file)
+
+### decisions
+```
 ### What was the choice between?
 {extract from conversation}
 
@@ -69,17 +124,10 @@ Create the file and folders if they don't exist. Always append — never overwri
 
 ### When to revisit
 {extract or note if unclear}
-
----
 ```
 
 ### bug-fixes
-
 ```
-## {title}
-**Date:** {date}
-**Session:** {session filename}
-
 ### Symptom
 {extract from conversation}
 
@@ -97,17 +145,10 @@ Create the file and folders if they don't exist. Always append — never overwri
 
 ### How to spot this faster next time
 {extract from conversation}
-
----
 ```
 
 ### design
-
 ```
-## {title}
-**Date:** {date}
-**Session:** {session filename}
-
 ### Problem being solved
 {extract from conversation}
 
@@ -122,17 +163,10 @@ Create the file and folders if they don't exist. Always append — never overwri
 
 ### Open questions
 {extract from conversation}
-
----
 ```
 
 ### research
-
 ```
-## {title}
-**Date:** {date}
-**Session:** {session filename}
-
 ### What I was trying to understand
 {extract from conversation}
 
@@ -150,17 +184,10 @@ Create the file and folders if they don't exist. Always append — never overwri
 
 ### Would I use this again?
 {extract from conversation}
-
----
 ```
 
 ### implementation
-
 ```
-## {title}
-**Date:** {date}
-**Session:** {session filename}
-
 ### What was built
 {extract from conversation}
 
@@ -170,26 +197,20 @@ Create the file and folders if they don't exist. Always append — never overwri
 ### What slowed me down
 {extract from conversation}
 
-### Anything reusable here?
+### What didn't work / was tried and abandoned
 {extract from conversation}
 
----
+### Anything reusable here?
+{extract from conversation}
 ```
 
 ### other
-
 ```
-## {title}
-**Date:** {date}
-**Session:** {session filename}
-
 ### What happened
 {extract from conversation}
 
 ### Worth revisiting?
 {extract from conversation}
-
----
 ```
 
 ## Step 4 — Print summary
@@ -197,6 +218,6 @@ Create the file and folders if they don't exist. Always append — never overwri
 After writing all files, print:
 
 - Time range processed
-- Each session on one line: `{filename} → {intent} → {project}`
+- Each session: `{filename} → {intent} → {project}`
 - Total sessions processed
 - Files written to
