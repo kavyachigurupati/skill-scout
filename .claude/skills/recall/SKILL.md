@@ -55,10 +55,12 @@ For each project encountered in the sessions, maintain two files:
 
 Append only. Never overwrite. This is the full history — what was tried, what didn't work, why decisions were made.
 
+Each entry uses a descriptive filename-style title derived from the session content — `{topic}-{intent}` (e.g. `skill-scout-design`, `obsidian-setup-research`, `tavily-search-implementation`). Topic is inferred from what the session was actually about, not just the project name.
+
 Start with the intent heading if this is the first entry of that type:
 
 ```
-# {intent}
+# {topic}-{intent}
 
 ## {session title} — {date}
 **Session:** {session filename}
@@ -68,7 +70,7 @@ Start with the intent heading if this is the first entry of that type:
 ---
 ```
 
-For subsequent entries of the same or different intent, just append the new block under the appropriate heading (add the heading if it doesn't exist yet).
+For subsequent entries, append the new block. Add a new `# {topic}-{intent}` heading if the topic+intent combination hasn't appeared before.
 
 ---
 
