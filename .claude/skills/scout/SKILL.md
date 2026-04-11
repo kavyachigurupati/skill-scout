@@ -9,6 +9,15 @@ You scan Claude Code sessions for patterns that signal automation opportunities.
 
 **Rules:** Never delete files. Never overwrite existing file content. Always append to existing files.
 
+## Status reporting
+
+At every step, print what you are doing. If anything fails, print clearly:
+- `✓` for success
+- `✗ ERROR:` followed by what failed and why
+- `⚠ WARNING:` for non-fatal issues
+
+Always print a summary block at the end even if nothing was found.
+
 ## Time range
 
 The user passed: $ARGUMENTS
@@ -24,25 +33,41 @@ Parse it as:
 
 ## Step 1 — Check last processed timestamp
 
-Read `~/Recall/.processed` if it exists. It contains a single ISO timestamp like `2026-04-11T18:00:23` — when recall last ran.
+Print: `→ Checking ~/Recall/.processed...`
 
-- If the file exists → only scout sessions and summaries created **after** this timestamp
-- If the file doesn't exist → scout everything within the requested time range
-- If the user explicitly passes a date like `this week` or `yesterday` → ignore `.processed` and scout the full requested range
+Read `~/Recall/.processed` if it exists.
+
+- If found → print `  Last recall run: {timestamp}. Scouting sessions after this.`
+- If not found → print `  No .processed file — scouting full range.`
+- If user passed explicit date → ignore `.processed`, print `  Explicit range passed — scouting full range.`
 
 ## Step 2 — Read summaries first
 
-Check `~/Recall/Projects/` for any `{project}-log.md` files updated after the `.processed` timestamp. Read these first — already classified, much faster to scan than raw sessions.
+Print: `→ Reading existing summaries from ~/Recall/Projects/...`
+
+Check for `{project}-log.md` files updated within the time range. Read these first — already classified, faster than raw sessions.
+
+- If found → print `  Found {n} summary files to scan.`
+- If none → print `  No summaries found — will read raw sessions only.`
+- If a file can't be read → print `  ⚠ WARNING: Could not read {filename} — skipping.`
 
 ## Step 3 — Find and read raw sessions
 
+Print: `→ Searching ~/.claude/projects for raw sessions...`
+
 Run: `find ~/.claude/projects -name "*.jsonl" ! -path "*/subagents/*"`
 
-Filter to files with internal timestamps after the `.processed` timestamp and within the requested time range. Use `head -c 3000` on each to get the `ai-title` and first user message. Skip sessions already covered by a summary from Step 2. Only read the full raw `.jsonl` if the summary doesn't have enough detail.
+Filter by timestamps. Use `head -c 3000` on each. Skip sessions already covered by a summary.
+
+- If no sessions or summaries found at all → print `  ⚠ No sessions found for this time range. Nothing to scout.` then print summary block and stop.
+- If sessions found → print `  Found {n} raw sessions to scan.`
+- If a file can't be read → print `  ⚠ WARNING: Could not read {filename} — skipping.`
 
 ## Step 4 — Scan for patterns
 
-Look for these signals across both summaries and raw sessions:
+Print: `→ Scanning for automation patterns...`
+
+Look for these signals:
 
 | Signal | Automation candidate |
 |---|---|
@@ -54,10 +79,14 @@ Look for these signals across both summaries and raw sessions:
 | Question asked to Claude that always has the same answer | Prompt template or CLAUDE.md entry |
 | Multi-step process done manually every time | Claude Code slash command or skill |
 
+- If no patterns found → print `  ⚠ No automation candidates found.`
+- If patterns found → print `  Found {n} candidates.`
+
 ## Step 5 — Write a Scout note for each candidate
 
-Write to: `~/Recall/Scout/{slug}.md`
-One file per candidate. Append if file exists, create if not.
+Print: `→ Writing scout notes to ~/Recall/Scout/...`
+
+Write to: `~/Recall/Scout/{slug}.md`. Append if exists, create if not.
 
 ```
 # {candidate title}
@@ -74,27 +103,36 @@ One file per candidate. Append if file exists, create if not.
 {script / MCP / agent / hook / slash command / skill}
 
 ## What it would do
-{one paragraph describing what the automation would actually do}
+{one paragraph}
 
 ## Suggested next step
-{one concrete action to start}
+{one concrete action}
 
 ---
 ```
 
+On success print: `  ✓ Written ~/Recall/Scout/{slug}.md`
+On failure print: `  ✗ ERROR: Could not write {slug}.md — {reason}`
+
 ## Step 6 — Log and print summary
 
-Append a line to `~/Recall/schedule.log`:
+Append to `~/Recall/schedule.log`:
 ```
 [{timestamp}] scout: scanned {n} summaries + {n} raw sessions, found {n} candidates
 ```
 
-Then print:
+Always print this block:
 
-- Time range scanned
-- Summaries read: {n}
-- Raw sessions scanned: {n}
-- Candidates found: {n}
-- One line per candidate: `{title} → {type} → {effort}`
-- Location: `~/Recall/Scout/`
-- Next run will pick up sessions after: {.processed timestamp}
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+scout complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Time range  : {range}
+Summaries   : {n} read
+Raw sessions: {n} scanned
+Candidates  : {n} found
+Files       : {list of files written, or "none"}
+Next run    : picks up sessions after {.processed timestamp}
+Errors      : {n} — {list if any, else "none"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```

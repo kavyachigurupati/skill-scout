@@ -13,6 +13,15 @@ You summarise Claude Code sessions for a given time range and write structured n
 - Append to log files
 - Update state files in place (they reflect current reality, not history)
 
+## Status reporting
+
+At every step, print what you are doing so the user can see progress. If anything fails, print clearly:
+- `✓` for success
+- `✗ ERROR:` followed by what failed and why
+- `⚠ WARNING:` for non-fatal issues (e.g. session skipped, file already exists)
+
+At the end always print a summary block even if nothing was processed.
+
 ## Time range
 
 The user passed: $ARGUMENTS
@@ -28,19 +37,33 @@ Parse it as:
 
 ## Step 1 — Check last processed timestamp
 
-Read `~/Recall/.processed` if it exists. It contains a single ISO timestamp line like `2026-04-11T18:00:23`. This is when recall last ran successfully.
+Print: `→ Checking ~/Recall/.processed...`
 
-- If the file exists → only process sessions with internal timestamps **after** this timestamp, regardless of the time range argument
-- If the file doesn't exist → process all sessions within the requested time range (first run)
-- If the user explicitly passes a date argument like `this week` or `yesterday` → ignore `.processed` and process the full requested range (user is intentionally re-running for a past period)
+Read `~/Recall/.processed` if it exists. It contains a single ISO timestamp like `2026-04-11T18:00:23`.
+
+- If found → print `  Last run: {timestamp}. Will only process sessions after this.`
+- If not found → print `  No .processed file — first run, processing full range.`
+- If user explicitly passed a date argument like `this week` or `yesterday` → ignore `.processed`, print `  Explicit range passed — ignoring .processed, processing full range.`
+
+If the file exists but is unreadable → print `✗ ERROR: Could not read ~/Recall/.processed — {reason}. Aborting.` and stop.
 
 ## Step 2 — Find sessions
 
+Print: `→ Searching ~/.claude/projects for sessions in range...`
+
 Use `find ~/.claude/projects -name "*.jsonl"` excluding subagent files.
 
-Filter to files whose internal timestamps fall within the requested time range AND are after the `.processed` timestamp (if applicable). Use `head -c 3000` on each file to read the opening — the `ai-title` field and first user message are enough to classify intent and extract the project name.
+Filter by internal timestamps. Use `head -c 3000` on each file to read the opening — the `ai-title` and first user message are enough to classify intent and project name.
 
-## Step 2 — Classify each session
+- If no sessions found → print `  ⚠ No sessions found for this time range. Nothing to process.` then print the summary block and stop.
+- If sessions found → print `  Found {n} sessions to process.`
+- If a session file can't be read → print `  ⚠ WARNING: Could not read {filename} — skipping.`
+
+## Step 3 — Classify each session
+
+Print: `→ Classifying sessions...`
+
+For each session print: `  {filename} → {intent} → {project}`
 
 Pick the single best intent:
 
@@ -51,21 +74,21 @@ Pick the single best intent:
 - `implementation` — building or writing something concrete
 - `other` — anything that doesn't fit above
 
-For the project name — the folder under `~/.claude/projects/` is a mangled path like `-Users-kavya-Desktop-my-project`. Use the last meaningful segment as the project name.
+For the project name — the folder under `~/.claude/projects/` is a mangled path like `-Users-kavya-Desktop-my-project`. Use the last meaningful segment.
 
-## Step 3 — Write two files per project
+## Step 4 — Write two files per project
 
-For each project encountered in the sessions, maintain two files:
+Print: `→ Writing to ~/Recall/Projects/...`
+
+For each project, maintain two files:
 
 ---
 
 ### File A: `~/Recall/Projects/{project-name}/{project-name}-log.md`
 
-Append only. Never overwrite. This is the full history — what was tried, what didn't work, why decisions were made.
+Append only. Never overwrite.
 
-Each entry uses a descriptive filename-style title derived from the session content — `{topic}-{intent}` (e.g. `skill-scout-design`, `obsidian-setup-research`, `tavily-search-implementation`). Topic is inferred from what the session was actually about, not just the project name.
-
-Start with the intent heading if this is the first entry of that type:
+Each entry uses `{topic}-{intent}` heading (e.g. `skill-scout-design`, `tavily-search-research`). Topic is inferred from session content.
 
 ```
 # {topic}-{intent}
@@ -78,41 +101,42 @@ Start with the intent heading if this is the first entry of that type:
 ---
 ```
 
-For subsequent entries, append the new block. Add a new `# {topic}-{intent}` heading if the topic+intent combination hasn't appeared before.
+On success print: `  ✓ Appended to {project-name}-log.md`
+On failure print: `  ✗ ERROR: Could not write {project-name}-log.md — {reason}`
 
 ---
 
 ### File B: `~/Recall/Projects/{project-name}/{project-name}-state.md`
 
-Living document — always reflects current reality. Read it first if it exists, then update the relevant sections in place. Create it if it doesn't exist.
+Living document — read first if exists, update in place. Create if not.
 
-Structure:
 ```
 # {project-name}
 
 ## What it is
-{one paragraph description of what the project does}
+{one paragraph}
 
 ## Current state
-{what is built and working right now}
+{what is built and working}
 
 ## Components / skills / scripts
-{list each component with a one-line description}
+{list each with one-line description}
 
 ## Key decisions
-{bullet list — one line per decision: what was decided and why, most recent first}
+{bullet list, most recent first}
 
 ## What has been tried and didn't work
-{bullet list — things attempted that failed or were ruled out, so Claude doesn't repeat them}
+{bullet list}
 
 ## Open questions
-{unresolved questions or next decisions to make}
+{unresolved questions}
 
 ## Last updated
 {date}
 ```
 
-When updating: rewrite only the sections that changed. Add new decisions to the top of Key decisions. Add failed approaches to "What has been tried". Remove resolved open questions.
+On success print: `  ✓ Updated {project-name}-state.md`
+On failure print: `  ✗ ERROR: Could not write {project-name}-state.md — {reason}`
 
 ---
 
@@ -223,21 +247,31 @@ When updating: rewrite only the sections that changed. Add new decisions to the 
 {extract from conversation}
 ```
 
-## Step 4 — Update processed timestamp
+## Step 5 — Update processed timestamp
 
-After successfully writing all files, update `~/Recall/.processed` with the current timestamp in ISO format (e.g. `2026-04-11T18:05:42`). Overwrite the file — it only ever holds the single most recent timestamp.
+On success, write current timestamp to `~/Recall/.processed`.
+Print: `  ✓ Updated ~/Recall/.processed`
 
-Also append a line to `~/Recall/schedule.log`:
+Append to `~/Recall/schedule.log`:
 ```
 [{timestamp}] recall: processed {n} sessions, updated {n} files
 ```
+Print: `  ✓ Logged to ~/Recall/schedule.log`
 
-## Step 5 — Print summary
+If either write fails, print the error but do not abort — the notes are already written.
 
-After writing all files, print:
+## Step 6 — Print summary
 
-- Time range processed
-- Each session: `{filename} → {intent} → {project}`
-- Total sessions processed
-- Files written to
-- Next run will pick up sessions after: {current timestamp}
+Always print this block, even if nothing was processed:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+recall complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Time range : {range}
+Sessions   : {n} processed, {n} skipped
+Files      : {list of files written}
+Next run   : picks up sessions after {timestamp}
+Errors     : {n} — {list if any, else "none"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
