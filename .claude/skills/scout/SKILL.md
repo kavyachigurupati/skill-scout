@@ -1,7 +1,7 @@
 ---
 name: scout
 description: Scans Claude Code sessions to find patterns worth automating — repeated tasks, recurring friction, manual steps that should be scripts, agents, or MCPs. Use when asked to scout, find automation opportunities, or check what could be automated.
-allowed-tools: Read, Write, Bash(find *), Bash(ls *), Bash(date *), Bash(head *), Bash(tail *), Bash(cat *), Bash(mkdir *), Bash(wc *), Bash(grep *), Bash(awk *), Bash(sed *), Bash(sort *)
+allowed-tools: Read, Write, Bash(find:*), Bash(ls:*), Bash(date:*), Bash(head:*), Bash(tail:*), Bash(cat:*), Bash(mkdir:*), Bash(wc:*), Bash(grep:*), Bash(awk:*), Bash(sed:*), Bash(sort:*)
 argument-hint: [today|yesterday|this week|last week|YYYY-MM-DD]
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: recall
 description: Summarises Claude Code sessions by intent and writes structured notes into Obsidian. Use when asked to summarise, recall, or log sessions from today, yesterday, this week, or a specific date.
-allowed-tools: Read, Write, Bash(find *), Bash(ls *), Bash(date *), Bash(head *), Bash(tail *), Bash(cat *), Bash(mkdir *), Bash(wc *), Bash(grep *), Bash(awk *), Bash(sed *), Bash(sort *)
+allowed-tools: Read, Write, Bash(find:*), Bash(ls:*), Bash(date:*), Bash(head:*), Bash(tail:*), Bash(cat:*), Bash(mkdir:*), Bash(wc:*), Bash(grep:*), Bash(awk:*), Bash(sed:*), Bash(sort:*)
 argument-hint: [today|yesterday|this week|last week|YYYY-MM-DD]
 ---
 
