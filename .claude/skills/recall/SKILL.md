@@ -26,11 +26,19 @@ Parse it as:
 - `YYYY-MM-DD` → that specific date
 - no argument → default to today
 
-## Step 1 — Find sessions
+## Step 1 — Check last processed timestamp
+
+Read `~/Recall/.processed` if it exists. It contains a single ISO timestamp line like `2026-04-11T18:00:23`. This is when recall last ran successfully.
+
+- If the file exists → only process sessions with internal timestamps **after** this timestamp, regardless of the time range argument
+- If the file doesn't exist → process all sessions within the requested time range (first run)
+- If the user explicitly passes a date argument like `this week` or `yesterday` → ignore `.processed` and process the full requested range (user is intentionally re-running for a past period)
+
+## Step 2 — Find sessions
 
 Use `find ~/.claude/projects -name "*.jsonl"` excluding subagent files.
 
-Filter to files whose internal timestamps fall within the requested time range. Use `head -c 3000` on each file to read the opening — the `ai-title` field and first user message are enough to classify intent and extract the project name.
+Filter to files whose internal timestamps fall within the requested time range AND are after the `.processed` timestamp (if applicable). Use `head -c 3000` on each file to read the opening — the `ai-title` field and first user message are enough to classify intent and extract the project name.
 
 ## Step 2 — Classify each session
 
@@ -215,7 +223,16 @@ When updating: rewrite only the sections that changed. Add new decisions to the 
 {extract from conversation}
 ```
 
-## Step 4 — Print summary
+## Step 4 — Update processed timestamp
+
+After successfully writing all files, update `~/Recall/.processed` with the current timestamp in ISO format (e.g. `2026-04-11T18:05:42`). Overwrite the file — it only ever holds the single most recent timestamp.
+
+Also append a line to `~/Recall/schedule.log`:
+```
+[{timestamp}] recall: processed {n} sessions, updated {n} files
+```
+
+## Step 5 — Print summary
 
 After writing all files, print:
 
@@ -223,3 +240,4 @@ After writing all files, print:
 - Each session: `{filename} → {intent} → {project}`
 - Total sessions processed
 - Files written to
+- Next run will pick up sessions after: {current timestamp}

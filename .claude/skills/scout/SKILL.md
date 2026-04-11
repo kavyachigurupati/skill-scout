@@ -22,17 +22,25 @@ Parse it as:
 - `YYYY-MM-DD` → that specific date
 - no argument → default to today
 
-## Step 1 — Read summaries first
+## Step 1 — Check last processed timestamp
 
-Check `~/Recall/Projects/` for any `{project}-log.md` files that were updated within the time range. Read these first — they are already classified and structured, much faster to scan than raw sessions.
+Read `~/Recall/.processed` if it exists. It contains a single ISO timestamp like `2026-04-11T18:00:23` — when recall last ran.
 
-## Step 2 — Find and read raw sessions
+- If the file exists → only scout sessions and summaries created **after** this timestamp
+- If the file doesn't exist → scout everything within the requested time range
+- If the user explicitly passes a date like `this week` or `yesterday` → ignore `.processed` and scout the full requested range
+
+## Step 2 — Read summaries first
+
+Check `~/Recall/Projects/` for any `{project}-log.md` files updated after the `.processed` timestamp. Read these first — already classified, much faster to scan than raw sessions.
+
+## Step 3 — Find and read raw sessions
 
 Run: `find ~/.claude/projects -name "*.jsonl" ! -path "*/subagents/*"`
 
-Filter to files whose internal timestamps fall within the requested time range. Use `head -c 3000` on each to get the `ai-title` and first user message. If a session is already covered by a summary from Step 1, skip reading the raw file. Only read the full raw `.jsonl` if the summary doesn't have enough detail to identify a pattern.
+Filter to files with internal timestamps after the `.processed` timestamp and within the requested time range. Use `head -c 3000` on each to get the `ai-title` and first user message. Skip sessions already covered by a summary from Step 2. Only read the full raw `.jsonl` if the summary doesn't have enough detail.
 
-## Step 3 — Scan for patterns
+## Step 4 — Scan for patterns
 
 Look for these signals across both summaries and raw sessions:
 
@@ -46,7 +54,7 @@ Look for these signals across both summaries and raw sessions:
 | Question asked to Claude that always has the same answer | Prompt template or CLAUDE.md entry |
 | Multi-step process done manually every time | Claude Code slash command or skill |
 
-## Step 4 — Write a Scout note for each candidate
+## Step 5 — Write a Scout note for each candidate
 
 Write to: `~/Recall/Scout/{slug}.md`
 One file per candidate. Append if file exists, create if not.
@@ -74,9 +82,14 @@ One file per candidate. Append if file exists, create if not.
 ---
 ```
 
-## Step 5 — Print summary
+## Step 6 — Log and print summary
 
-After writing all files, print:
+Append a line to `~/Recall/schedule.log`:
+```
+[{timestamp}] scout: scanned {n} summaries + {n} raw sessions, found {n} candidates
+```
+
+Then print:
 
 - Time range scanned
 - Summaries read: {n}
@@ -84,3 +97,4 @@ After writing all files, print:
 - Candidates found: {n}
 - One line per candidate: `{title} → {type} → {effort}`
 - Location: `~/Recall/Scout/`
+- Next run will pick up sessions after: {.processed timestamp}
