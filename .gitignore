@@ -1,0 +1,3 @@
+# Runtime output — lives in ~/Recall/, not in repo
+.processed
+schedule.log
