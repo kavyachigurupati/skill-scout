@@ -12,19 +12,19 @@ Two Claude Code skills, no external dependencies, one command at end of day.
 
 ```mermaid
 flowchart TD
-    A[~/.claude/projects/*.jsonl\nClaude Code sessions] --> B[/recall]
-    A --> C[/scout]
+    A["Claude Code sessions<br/>~/.claude/projects/"] --> B["/recall"]
+    A --> C["/scout"]
 
-    B --> B1[Find sessions in range]
-    B1 --> B2[Detect project via cwd / git remote]
-    B2 --> B3[Classify intent\ndecisions · bug-fixes · design\nresearch · implementation · other]
-    B3 --> B4[Append to project log\nUpdate project state\nUpdate index]
+    B --> B1["Find sessions in range"]
+    B1 --> B2["Detect project<br/>cwd · git remote · content"]
+    B2 --> B3["Classify intent<br/>decisions · bug-fixes · design<br/>research · implementation"]
+    B3 --> B4["Append to project log<br/>Update project state<br/>Update index.md"]
 
-    C --> C1[Read project logs + raw sessions]
-    C1 --> C2[Scan for automation patterns\nrepeated tasks · recurring errors\nmanual workflows · repeated lookups]
-    C2 --> C3[Write scout candidate notes]
+    C --> C1["Read logs + raw sessions"]
+    C1 --> C2["Scan for patterns<br/>repeated tasks · recurring errors<br/>manual workflows"]
+    C2 --> C3["Write scout candidate notes"]
 
-    B4 --> V[(~/Recall/ vault)]
+    B4 --> V[("~/Recall/")]
     C3 --> V
 ```
 
