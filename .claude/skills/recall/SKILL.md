@@ -9,9 +9,9 @@ You summarise Claude Code sessions for a given time range and write structured n
 
 **Rules:**
 - Never delete files
-- Never overwrite existing file content
-- Append to log files
-- Update state files in place (they reflect current reality, not history)
+- Append to log files — never overwrite them
+- State files reflect current reality — read first, then overwrite with updated content
+- index.md reflects current reality — read first, then overwrite with updated content
 
 ## Status reporting
 
@@ -53,19 +53,19 @@ Print: `→ Searching ~/.claude/projects for sessions in range...`
 
 Use `find ~/.claude/projects -name "*.jsonl"` excluding subagent files.
 
-Filter by internal timestamps. Use `head -c 3000` on each file to read the opening — the `ai-title` and first user message are enough to classify intent and project name.
+Filter by internal timestamps. Use `head -c 3000` on each file to read the opening — the `ai-title` and first user message are enough to classify intent.
 
 - If no sessions found → print `  ⚠ No sessions found for this time range. Nothing to process.` then print the summary block and stop.
 - If sessions found → print `  Found {n} sessions to process.`
 - If a session file can't be read → print `  ⚠ WARNING: Could not read {filename} — skipping.`
 
-## Step 3 — Classify each session
+## Step 3 — Classify and detect project for each session
 
 Print: `→ Classifying sessions...`
 
 For each session print: `  {filename} → {intent} → {project}`
 
-Pick the single best intent:
+### Intent — pick the single best:
 
 - `decisions` — choosing between approaches, tools, or directions
 - `bug-fixes` — diagnosing and fixing something broken
@@ -74,13 +74,18 @@ Pick the single best intent:
 - `implementation` — building or writing something concrete
 - `other` — anything that doesn't fit above
 
-For the project name — the folder under `~/.claude/projects/` is a mangled path like `-Users-kavya-Desktop-my-project`. Use the last meaningful segment.
+### Project name detection — in priority order:
+
+1. **Working directory path**: run `grep -m1 "cwd\|\"pwd\"\|Desktop" {session_file}` — extract the deepest meaningful folder from the path (e.g. `/Users/kavya/Desktop/DEV_MODE/skill-scout/` → `skill-scout`)
+2. **Git remote**: run `grep -m1 "remote\|origin\|github.com" {session_file}` — extract repo name from the URL (e.g. `git@github.com:user/skill-scout.git` → `skill-scout`)
+3. **Session content**: if the `ai-title` or first user message clearly names a project, use that
+4. **Folder name fallback**: use the last meaningful segment of the `~/.claude/projects/` folder name only if none of the above work (e.g. `-Users-kavya-Desktop-DEV_MODE` → `DEV-MODE`)
+
+Print the detection method used: `  → project detected via {cwd | git remote | content | folder fallback}: {project}`
 
 ## Step 4 — Write two files per project
 
 Print: `→ Writing to ~/Recall/Projects/...`
-
-For each project, maintain two files:
 
 ---
 
@@ -88,12 +93,13 @@ For each project, maintain two files:
 
 Append only. Never overwrite.
 
-Each entry uses `{topic}-{intent}` heading (e.g. `skill-scout-design`, `tavily-search-research`). Topic is inferred from session content.
+Each entry uses the heading format: `## [YYYY-MM-DD] intent | topic`
+
+Topic is a short slug inferred from session content (e.g. `recall-skill-permissions`, `git-branch-cleanup`).
 
 ```
-# {topic}-{intent}
+## [YYYY-MM-DD] intent | topic
 
-## {session title} — {date}
 **Session:** {session filename}
 
 {fill the matching intent template below}
@@ -108,7 +114,7 @@ On failure print: `  ✗ ERROR: Could not write {project-name}-log.md — {reaso
 
 ### File B: `~/Recall/Projects/{project-name}/{project-name}-state.md`
 
-Living document — read first if exists, update in place. Create if not.
+Current truth — read the existing file first if it exists, then write the updated version in full. Do not append.
 
 ```
 # {project-name}
@@ -117,7 +123,7 @@ Living document — read first if exists, update in place. Create if not.
 {one paragraph}
 
 ## Current state
-{what is built and working}
+{what is built and working right now}
 
 ## Components / skills / scripts
 {list each with one-line description}
@@ -247,7 +253,34 @@ On failure print: `  ✗ ERROR: Could not write {project-name}-state.md — {rea
 {extract from conversation}
 ```
 
-## Step 5 — Update processed timestamp
+## Step 5 — Update index.md
+
+Print: `→ Updating ~/Recall/index.md...`
+
+Read `~/Recall/index.md` if it exists. For each project processed this run, update its entry (or add it if new). Each entry is one line under `## Projects`:
+
+```
+- [{project-name}](Projects/{project-name}/{project-name}-log.md) — {one sentence: what this project is and what it does} — last updated {YYYY-MM-DD}
+```
+
+Write the full file back (this is a catalog, not a log — it reflects current state).
+
+If the file does not exist, create it:
+
+```
+# Recall Index
+
+## Projects
+{entries}
+
+## Scout candidates
+See [Scout/](Scout/) for automation candidates flagged by /scout.
+```
+
+On success print: `  ✓ Updated ~/Recall/index.md`
+On failure print: `  ✗ ERROR: Could not write index.md — {reason}`
+
+## Step 6 — Update processed timestamp
 
 On success, write current timestamp to `~/Recall/.processed`.
 Print: `  ✓ Updated ~/Recall/.processed`
@@ -260,7 +293,7 @@ Print: `  ✓ Logged to ~/Recall/schedule.log`
 
 If either write fails, print the error but do not abort — the notes are already written.
 
-## Step 6 — Print summary
+## Step 7 — Print summary
 
 Always print this block, even if nothing was processed:
 
@@ -270,6 +303,7 @@ recall complete
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Time range : {range}
 Sessions   : {n} processed, {n} skipped
+Projects   : {list of projects written}
 Files      : {list of files written}
 Next run   : picks up sessions after {timestamp}
 Errors     : {n} — {list if any, else "none"}

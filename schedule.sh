@@ -2,7 +2,8 @@
 # schedule.sh — runs /recall today and /scout today if new sessions exist
 # Installed as a cron job by setup.sh — do not run manually unless testing
 
-LOG="$HOME/Recall/schedule.log"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG="$REPO_DIR/schedule.log"
 PROJECTS_DIR="$HOME/.claude/projects"
 TODAY=$(date +%Y-%m-%d)
 
@@ -19,9 +20,9 @@ fi
 echo "[$TODAY $(date +%H:%M)] Sessions found, running /recall and /scout" >> "$LOG"
 
 # Run recall
-claude --print "/recall today" >> "$LOG" 2>&1
+npx @anthropic-ai/claude-code --print "/recall today" >> "$LOG" 2>&1
 echo "[$TODAY $(date +%H:%M)] /recall done" >> "$LOG"
 
 # Run scout
-claude --print "/scout today" >> "$LOG" 2>&1
+npx @anthropic-ai/claude-code --print "/scout today" >> "$LOG" 2>&1
 echo "[$TODAY $(date +%H:%M)] /scout done" >> "$LOG"
