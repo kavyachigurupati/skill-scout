@@ -1,13 +1,13 @@
 ---
 name: recall
-description: Summarises Claude Code sessions by intent and writes structured notes into Obsidian. Use when asked to summarise, recall, or log sessions from today, yesterday, this week, or a specific date.
-allowed-tools: Read, Write, Bash(find:*), Bash(ls:*), Bash(date:*), Bash(head:*), Bash(tail:*), Bash(cat:*), Bash(mkdir:*), Bash(wc:*), Bash(grep:*), Bash(awk:*), Bash(sed:*), Bash(sort:*)
-argument-hint: [today|yesterday|this week|last week|YYYY-MM-DD]
+description: Summarises Claude Code sessions by intent and writes structured notes into Obsidian — a per-project log, current-state snapshot, and global timeline. Use when asked to "log my sessions", "what did I work on today", "recap this week", "write up yesterday", "summarise today's sessions", or when given a specific date. Also triggers /scout automatically when enough sessions accumulate.
+allowed-tools: Read, Write, Grep, Bash(find:*), Bash(date:*), Bash(mkdir:*), Bash(wc:*), Bash(awk:*), Bash(sed:*), Bash(sort:*), Skill(*)
 ---
 
 You summarise Claude Code sessions for a given time range and write structured notes into Obsidian.
 
-**Rules:**
+## Rules
+
 - Never delete files
 - Append to log files — never overwrite them
 - State files reflect current reality — read first, then overwrite with updated content
@@ -16,11 +16,43 @@ You summarise Claude Code sessions for a given time range and write structured n
 ## Status reporting
 
 At every step, print what you are doing so the user can see progress. If anything fails, print clearly:
+
 - `✓` for success
 - `✗ ERROR:` followed by what failed and why
 - `⚠ WARNING:` for non-fatal issues (e.g. session skipped, file already exists)
 
 At the end always print a summary block even if nothing was processed.
+
+## Error handling
+
+**Invalid argument:** If `$ARGUMENTS` is set but does not match any recognised pattern, print:
+
+```
+✗ ERROR: Unrecognised argument "{value}" — valid options: today | yesterday | this week | last week | YYYY-MM-DD
+```
+
+and stop immediately.
+
+**Missing ~/.claude/projects:** If the directory does not exist when searched in Step 2, print:
+
+```
+✗ ERROR: ~/.claude/projects not found — is Claude Code installed and has it been run at least once?
+```
+
+and stop.
+
+**Partial failure mid-run:** If Steps 4, 5, or 6 produce any errors:
+
+- Do NOT update `~/Recall/.processed` — leave it at its previous value so the next run reprocesses the affected sessions
+- Print `✗ ERROR` for each failure and continue to the next project or step
+- Report all failures in the Errors line of the summary
+
+**Unexpected errors:** If any command or file operation fails in a way not covered by a specific step:
+
+- Print: `✗ ERROR: Unexpected failure in Step {N} — {command} returned: {error}`
+- Bookkeeping failures (log, index, schedule.log): print the error and continue — notes are more important than bookkeeping
+- Core write failures (Step 4 project files): skip that project, continue to the next, count as an error
+- Never silently swallow an error — always surface it
 
 ## Time range
 
@@ -34,6 +66,8 @@ Parse it as:
 - `last week` → the week before this one
 - `YYYY-MM-DD` → that specific date
 - no argument → default to today
+
+If `$ARGUMENTS` is set but matches none of the above, apply the invalid argument rule from Error handling and stop.
 
 ## Step 1 — Check last processed timestamp
 
@@ -117,6 +151,14 @@ On failure print: `  ✗ ERROR: Could not write {project-name}-log.md — {reaso
 Current truth — read the existing file first if it exists, then write the updated version in full. Do not append.
 
 ```
+---
+project: {project-name}
+status: active | stalled | complete
+last-updated: {YYYY-MM-DD}
+tags: [{comma-separated intent tags from recent sessions}]
+related: [{other project names referenced in this session, if any}]
+---
+
 # {project-name}
 
 ## What it is
@@ -137,123 +179,34 @@ Current truth — read the existing file first if it exists, then write the upda
 ## Open questions
 {unresolved questions}
 
+## Related projects
+{links to other ~/Recall/Projects/ pages that this project references or depends on}
+
 ## Last updated
 {date}
 ```
+
+**Cross-project linking:** Before writing, scan the session content and the existing state file for mentions of other project names known from `~/Recall/index.md`. List any found under `## Related projects` as markdown links: `- [{project-name}](../{project-name}/{project-name}-state.md)`.
 
 On success print: `  ✓ Updated {project-name}-state.md`
 On failure print: `  ✗ ERROR: Could not write {project-name}-state.md — {reason}`
 
 ---
 
-## Intent templates (for the log file)
+## Step 5 — Append to global log
 
-### decisions
-```
-### What was the choice between?
-{extract from conversation}
+Print: `→ Updating ~/Recall/log.md...`
 
-### Why this path was chosen
-{extract from conversation}
+Append one line per session processed to `~/Recall/log.md`. Create the file if it doesn't exist.
 
-### What was ruled out and why
-{extract from conversation}
+Each line uses the format: `## [YYYY-MM-DD] {intent} | {project} | {topic-slug}`
 
-### Assumptions being made
-{extract from conversation}
+This gives a single chronological timeline across all projects, grep-able with standard unix tools.
 
-### When to revisit
-{extract or note if unclear}
-```
+On success print: `  ✓ Appended {n} entries to ~/Recall/log.md`
+On failure print: `  ✗ ERROR: Could not write ~/Recall/log.md — {reason}`
 
-### bug-fixes
-```
-### Symptom
-{extract from conversation}
-
-### First guess
-{extract from conversation}
-
-### What it actually was
-{extract from conversation}
-
-### How it got fixed
-{extract from conversation}
-
-### What wasted time
-{extract from conversation}
-
-### How to spot this faster next time
-{extract from conversation}
-```
-
-### design
-```
-### Problem being solved
-{extract from conversation}
-
-### Options considered
-{extract from conversation}
-
-### Trade-offs
-{extract from conversation}
-
-### What shaped the final direction
-{extract from conversation}
-
-### Open questions
-{extract from conversation}
-```
-
-### research
-```
-### What I was trying to understand
-{extract from conversation}
-
-### Key discoveries
-{extract from conversation}
-
-### Tools / docs / resources found
-{extract from conversation}
-
-### What surprised me
-{extract from conversation}
-
-### Pros / cons / gotchas
-{extract from conversation}
-
-### Would I use this again?
-{extract from conversation}
-```
-
-### implementation
-```
-### What was built
-{extract from conversation}
-
-### What saved time
-{extract from conversation}
-
-### What slowed me down
-{extract from conversation}
-
-### What didn't work / was tried and abandoned
-{extract from conversation}
-
-### Anything reusable here?
-{extract from conversation}
-```
-
-### other
-```
-### What happened
-{extract from conversation}
-
-### Worth revisiting?
-{extract from conversation}
-```
-
-## Step 5 — Update index.md
+## Step 6 — Update index.md
 
 Print: `→ Updating ~/Recall/index.md...`
 
@@ -280,20 +233,35 @@ See [Scout/](Scout/) for automation candidates flagged by /scout.
 On success print: `  ✓ Updated ~/Recall/index.md`
 On failure print: `  ✗ ERROR: Could not write index.md — {reason}`
 
-## Step 6 — Update processed timestamp
+## Step 7 — Update processed timestamp
 
-On success, write current timestamp to `~/Recall/.processed`.
+Only update `~/Recall/.processed` if no errors occurred in Steps 4, 5, or 6. If any errors occurred, leave `.processed` at its previous value so the next run reprocesses the affected sessions — do not silently drop failed sessions.
+
+If updating: write current timestamp to `~/Recall/.processed`.
 Print: `  ✓ Updated ~/Recall/.processed`
+If skipping due to errors: print `  ⚠ .processed not updated — errors occurred, next run will reprocess affected sessions`
 
 Append to `~/Recall/schedule.log`:
+
 ```
 [{timestamp}] recall: processed {n} sessions, updated {n} files
 ```
+
 Print: `  ✓ Logged to ~/Recall/schedule.log`
 
 If either write fails, print the error but do not abort — the notes are already written.
 
-## Step 7 — Print summary
+## Step 8 — Verify before summarising
+
+Before printing the summary, confirm each of the following. For any item not met, print `✗ ERROR` — do not mark it as success in the summary.
+
+- [ ] Every session found was either written to a project log or explicitly skipped with a warning
+- [ ] Every project written has both an updated log file and an updated state file
+- [ ] `~/Recall/log.md` was appended with one line per session processed
+- [ ] `~/Recall/index.md` reflects all projects touched this run
+- [ ] `~/Recall/.processed` was either updated (clean run) or intentionally left unchanged (errors occurred)
+
+## Step 9 — Print summary
 
 Always print this block, even if nothing was processed:
 
@@ -308,4 +276,138 @@ Files      : {list of files written}
 Next run   : picks up sessions after {timestamp}
 Errors     : {n} — {list if any, else "none"}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+## Step 10 — Adaptive scout trigger
+
+Count sessions processed this run. Read `~/Recall/.scout_processed` if it exists.
+
+| Sessions this run | Call /scout if...                                          |
+| ----------------- | ---------------------------------------------------------- |
+| 1–2               | No `.scout_processed` file, or last scout was > 7 days ago |
+| 3–5               | Last scout was > 2 days ago                                |
+| 6+                | Always                                                     |
+
+If threshold met:
+
+- Print: `→ Threshold met ({n} sessions) — invoking /scout {time-range-argument}...`
+- Invoke `/scout` with the same time range argument that was passed to recall
+
+If threshold not met:
+
+- Print: `⚠ Scout skipped — {n} sessions, last scout {X} days ago (threshold not met)`
+
+---
+
+## Intent templates (for the log file)
+
+### decisions
+
+```
+### What was the choice between?
+{extract from conversation}
+
+### Why this path was chosen
+{extract from conversation}
+
+### What was ruled out and why
+{extract from conversation}
+
+### Assumptions being made
+{extract from conversation}
+
+### When to revisit
+{extract or note if unclear}
+```
+
+### bug-fixes
+
+```
+### Symptom
+{extract from conversation}
+
+### First guess
+{extract from conversation}
+
+### What it actually was
+{extract from conversation}
+
+### How it got fixed
+{extract from conversation}
+
+### What wasted time
+{extract from conversation}
+
+### How to spot this faster next time
+{extract from conversation}
+```
+
+### design
+
+```
+### Problem being solved
+{extract from conversation}
+
+### Options considered
+{extract from conversation}
+
+### Trade-offs
+{extract from conversation}
+
+### What shaped the final direction
+{extract from conversation}
+
+### Open questions
+{extract from conversation}
+```
+
+### research
+
+```
+### What I was trying to understand
+{extract from conversation}
+
+### Key discoveries
+{extract from conversation}
+
+### Tools / docs / resources found
+{extract from conversation}
+
+### What surprised me
+{extract from conversation}
+
+### Pros / cons / gotchas
+{extract from conversation}
+
+### Would I use this again?
+{extract from conversation}
+```
+
+### implementation
+
+```
+### What was built
+{extract from conversation}
+
+### What saved time
+{extract from conversation}
+
+### What slowed me down
+{extract from conversation}
+
+### What didn't work / was tried and abandoned
+{extract from conversation}
+
+### Anything reusable here?
+{extract from conversation}
+```
+
+### other
+
+```
+### What happened
+{extract from conversation}
+
+### Worth revisiting?
+{extract from conversation}
 ```
