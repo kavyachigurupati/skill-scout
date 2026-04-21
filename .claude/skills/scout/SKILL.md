@@ -1,22 +1,51 @@
 ---
 name: scout
 description: Scans Claude Code sessions to find patterns worth automating — repeated tasks, recurring friction, manual steps that should be scripts, agents, or MCPs. Use when asked to scout, find automation opportunities, or check what could be automated.
-allowed-tools: Read, Write, Bash(find:*), Bash(ls:*), Bash(date:*), Bash(head:*), Bash(tail:*), Bash(cat:*), Bash(mkdir:*), Bash(wc:*), Bash(grep:*), Bash(awk:*), Bash(sed:*), Bash(sort:*)
-argument-hint: [today|yesterday|this week|last week|YYYY-MM-DD]
+allowed-tools: Read, Write, Grep, Bash(find:*), Bash(date:*), Bash(mkdir:*), Bash(wc:*), Bash(awk:*), Bash(sed:*), Bash(sort:*), Skill(*)
 ---
 
 You scan Claude Code sessions for patterns that signal automation opportunities.
 
-**Rules:** Never delete files. Never overwrite existing file content. Always append to existing files.
+## Rules
+
+- Never delete files
+- Never overwrite existing file content
+- Always append to existing files
 
 ## Status reporting
 
 At every step, print what you are doing. If anything fails, print clearly:
+
 - `✓` for success
 - `✗ ERROR:` followed by what failed and why
 - `⚠ WARNING:` for non-fatal issues
 
 Always print a summary block at the end even if nothing was found.
+
+## Error handling
+
+**Invalid argument:** If `$ARGUMENTS` is set but does not match any recognised pattern, print:
+
+```
+✗ ERROR: Unrecognised argument "{value}" — valid options: today | yesterday | this week | last week | YYYY-MM-DD
+```
+
+and stop immediately.
+
+**Missing ~/.claude/projects:** If the directory does not exist when searched in Step 3, print:
+
+```
+✗ ERROR: ~/.claude/projects not found — is Claude Code installed and has it been run at least once?
+```
+
+and stop.
+
+**Unexpected errors:** If any command or file operation fails in a way not covered by a specific step:
+
+- Print: `✗ ERROR: Unexpected failure in Step {N} — {command} returned: {error}`
+- Write failures for scout notes (Step 5): skip that candidate, continue to the next, count as an error
+- Bookkeeping failures (schedule.log, .scout_processed): print the error and continue — candidates already written are more important
+- Never silently swallow an error
 
 ## Time range
 
@@ -30,6 +59,8 @@ Parse it as:
 - `last week` → the week before this one
 - `YYYY-MM-DD` → that specific date
 - no argument → default to today
+
+If `$ARGUMENTS` is set but matches none of the above, apply the invalid argument rule from Error handling and stop.
 
 ## Step 1 — Check last processed timestamp
 
@@ -69,15 +100,15 @@ Print: `→ Scanning for automation patterns...`
 
 Look for these signals:
 
-| Signal | Automation candidate |
-|---|---|
-| Same task done manually more than once | Script or reusable template |
-| Repeated lookup of the same docs, tools, or syntax | MCP server or browser agent |
-| Same class of error appearing again | Linter rule or pre-check agent |
-| Workflow that could run unattended | Scheduled job or autonomous agent |
-| Setup or context that's always repeated at the start | Claude Code hook or shell alias |
+| Signal                                                   | Automation candidate               |
+| -------------------------------------------------------- | ---------------------------------- |
+| Same task done manually more than once                   | Script or reusable template        |
+| Repeated lookup of the same docs, tools, or syntax       | MCP server or browser agent        |
+| Same class of error appearing again                      | Linter rule or pre-check agent     |
+| Workflow that could run unattended                       | Scheduled job or autonomous agent  |
+| Setup or context that's always repeated at the start     | Claude Code hook or shell alias    |
 | Question asked to Claude that always has the same answer | Prompt template or CLAUDE.md entry |
-| Multi-step process done manually every time | Claude Code slash command or skill |
+| Multi-step process done manually every time              | Claude Code slash command or skill |
 
 - If no patterns found → print `  ⚠ No automation candidates found.`
 - If patterns found → print `  Found {n} candidates.`
@@ -114,9 +145,21 @@ Write to: `~/Recall/Scout/{slug}.md`. Append if exists, create if not.
 On success print: `  ✓ Written ~/Recall/Scout/{slug}.md`
 On failure print: `  ✗ ERROR: Could not write {slug}.md — {reason}`
 
-## Step 6 — Log and print summary
+## Step 6 — Verify before summarising
+
+Before printing the summary, confirm each of the following. For any item not met, print `✗ ERROR` — do not mark it as success in the summary.
+
+- [ ] Every session or summary file found was either scanned for patterns or explicitly skipped with a warning
+- [ ] Every automation candidate found has a written scout note in `~/Recall/Scout/`
+- [ ] `~/Recall/.scout_processed` was updated
+
+## Step 7 — Log and print summary
+
+Write current timestamp to `~/Recall/.scout_processed`.
+Print: `  ✓ Updated ~/Recall/.scout_processed`
 
 Append to `~/Recall/schedule.log`:
+
 ```
 [{timestamp}] scout: scanned {n} summaries + {n} raw sessions, found {n} candidates
 ```
