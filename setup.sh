@@ -1,36 +1,84 @@
 #!/bin/bash
-# One-time setup for skill-scout
+# setup.sh — one-time setup for skill-scout
 # Run once: bash setup.sh
 
+set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "→ Creating Obsidian vault folders at ~/Recall..."
-mkdir -p ~/Recall/Scout
-mkdir -p ~/Recall/Projects
-echo "  ✓ done"
-
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "skill-scout setup"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "→ Making schedule.sh executable..."
+
+# ── 1. Python dependency ──────────────────────────────────────────────────────
+echo "→ Checking claude-code SDK..."
+if python3 -c "import claude_code_sdk" 2>/dev/null; then
+    echo "  ✓ already installed"
+else
+    echo "  Installing..."
+    pip install claude-code
+    echo "  ✓ installed"
+fi
+
+# ── 2. Vault folders ──────────────────────────────────────────────────────────
+echo ""
+echo "→ Creating ~/Recall vault folders..."
+for dir in ~/Recall ~/Recall/Projects ~/Recall/Scout; do
+    if [ -d "$dir" ]; then
+        echo "  ✓ $dir already exists"
+    else
+        mkdir -p "$dir"
+        echo "  ✓ created $dir"
+    fi
+done
+
+# ── 3. Global skill install ───────────────────────────────────────────────────
+echo ""
+echo "→ Installing skills to ~/.claude/skills/..."
+for skill in recall scout recall-lint; do
+    dest="$HOME/.claude/skills/$skill"
+    src="$SCRIPT_DIR/.claude/skills/$skill/SKILL.md"
+    if [ ! -f "$src" ]; then
+        echo "  ⚠ WARNING: $src not found — skipping $skill"
+        continue
+    fi
+    if [ -d "$dest" ]; then
+        echo "  ✓ ~/.claude/skills/$skill already exists — updating SKILL.md"
+    else
+        mkdir -p "$dest"
+    fi
+    cp "$src" "$dest/SKILL.md"
+    echo "  ✓ installed $skill"
+done
+
+# ── 4. Make scripts executable ────────────────────────────────────────────────
+echo ""
+echo "→ Making scripts executable..."
 chmod +x "$SCRIPT_DIR/schedule.sh"
+chmod +x "$SCRIPT_DIR/recall.py"
 echo "  ✓ done"
 
+# ── 5. Cron job ───────────────────────────────────────────────────────────────
 echo ""
 echo "→ Installing cron job (runs daily at 6pm)..."
 CRON_JOB="0 18 * * * $SCRIPT_DIR/schedule.sh"
-# Add only if not already installed
-( crontab -l 2>/dev/null | grep -v "schedule.sh"; echo "$CRON_JOB" ) | crontab -
-echo "  ✓ done"
+if crontab -l 2>/dev/null | grep -q "schedule.sh"; then
+    echo "  ✓ cron job already installed"
+else
+    ( crontab -l 2>/dev/null; echo "$CRON_JOB" ) | crontab -
+    echo "  ✓ installed: $CRON_JOB"
+fi
 
+# ── done ──────────────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Setup complete. Next steps:"
+echo "Setup complete."
 echo ""
-echo "1. Open Obsidian → open vault → point at ~/Recall"
+echo "  /recall, /scout, /recall-lint are ready in Claude Code"
+echo "  Cron runs recall.py automatically at 6pm daily"
+echo "  Logs at ~/Recall/schedule.log"
 echo ""
-echo "2. /recall and /scout will run automatically at 6pm daily"
-echo "   Or trigger manually in Claude Code:"
-echo "   /recall today"
-echo "   /scout today"
-echo ""
-echo "3. Check logs at ~/Recall/schedule.log"
+echo "  NOTE: For cron to access ~/.claude/projects/, grant"
+echo "  Terminal Full Disk Access in:"
+echo "  System Settings → Privacy & Security → Full Disk Access"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
