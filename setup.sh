@@ -7,7 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "→ Creating Obsidian vault folders at ~/Recall..."
 mkdir -p ~/Recall/Scout
 mkdir -p ~/Recall/Projects
-mkdir -p ~/Recall/Daily\ Log
 echo "  ✓ done"
 
 echo ""

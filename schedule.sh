@@ -17,12 +17,8 @@ if [ -z "$NEW_SESSIONS" ]; then
   exit 0
 fi
 
-echo "[$TODAY $(date +%H:%M)] Sessions found, running /recall and /scout" >> "$LOG"
+echo "[$TODAY $(date +%H:%M)] Sessions found, running recall.py" >> "$LOG"
 
-# Run recall
-npx @anthropic-ai/claude-code --print "/recall today" >> "$LOG" 2>&1
-echo "[$TODAY $(date +%H:%M)] /recall done" >> "$LOG"
-
-# Run scout
-npx @anthropic-ai/claude-code --print "/scout today" >> "$LOG" 2>&1
-echo "[$TODAY $(date +%H:%M)] /scout done" >> "$LOG"
+# Run recall (uses bypassPermissions — no popups)
+python3 "$REPO_DIR/recall.py" today >> "$LOG" 2>&1
+echo "[$TODAY $(date +%H:%M)] recall done" >> "$LOG"
