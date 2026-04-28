@@ -85,7 +85,9 @@ If the file exists but is unreadable → print `✗ ERROR: Could not read ~/Reca
 
 Print: `→ Searching ~/.claude/projects for sessions in range...`
 
-Use `find ~/.claude/projects -name "*.jsonl"` excluding subagent files.
+Use `find ~/.claude/projects -name "*.jsonl" ! -path "*/subagents/*"` to exclude subagent files.
+
+Print: `  Skipped {n} subagent files (fragments of parent sessions, no user intent).`
 
 Filter by internal timestamps. Use `head -c 3000` on each file to read the opening — the `ai-title` and first user message are enough to classify intent.
 

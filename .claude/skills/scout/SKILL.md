@@ -88,6 +88,8 @@ Print: `→ Searching ~/.claude/projects for raw sessions...`
 
 Run: `find ~/.claude/projects -name "*.jsonl" ! -path "*/subagents/*"`
 
+Print: `  Skipped {n} subagent files (fragments of parent sessions, no user intent).`
+
 Filter by timestamps. Use `head -c 3000` on each. Skip sessions already covered by a summary.
 
 - If no sessions or summaries found at all → print `  ⚠ No sessions found for this time range. Nothing to scout.` then print summary block and stop.
