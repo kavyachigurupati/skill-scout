@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Bash(find:*), Bash(date:*), Bash(wc:*), Bash(awk:*), 
 
 You health-check the ~/Recall wiki and report issues. Read only — you never write, modify, or delete files.
 
-**Rules:**
+## Rules
 
 - Read only — never write, never delete
 - Report all findings even if the wiki is clean
@@ -21,6 +21,20 @@ At every step, print what you are doing:
 - `✗ ERROR:` for broken or missing required files
 
 Always print the full health report at the end even if no issues are found.
+
+## Error handling
+
+**Missing ~/Recall/index.md:** Caught in Step 1 — stops immediately with error.
+
+**Unreadable state file mid-run:** If a `{project}-state.md` exists but cannot be read:
+
+- Print: `  ⚠ WARNING: Could not read {project}-state.md — skipping staleness and cross-link checks for this project`
+- Continue to the next project — never abort a full run for one bad file
+
+**Unexpected errors:** If any read operation fails in a way not covered by a specific step:
+
+- Print: `✗ ERROR: Unexpected failure in Step {N} — {reason}`
+- Continue — never silently swallow an error
 
 ## Step 1 — Read index.md
 
