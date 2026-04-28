@@ -56,6 +56,7 @@ echo ""
 echo "→ Making scripts executable..."
 chmod +x "$SCRIPT_DIR/schedule.sh"
 chmod +x "$SCRIPT_DIR/recall.py"
+chmod +x "$SCRIPT_DIR/scout.py"
 echo "  ✓ done"
 
 # ── 5. Cron job ───────────────────────────────────────────────────────────────
