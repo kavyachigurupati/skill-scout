@@ -1,6 +1,6 @@
 ---
 name: scout
-description: Scans Claude Code sessions to find patterns worth automating — repeated tasks, recurring friction, manual steps that should be scripts, agents, or MCPs. Use when asked to scout, find automation opportunities, or check what could be automated.
+description: Scans Claude Code sessions to find patterns worth automating — repeated tasks, recurring friction, manual steps that should be scripts, agents, or MCPs. Use when asked to "scout", "find automation opportunities", "what could be a skill", "check what could be automated", "any patterns worth automating", "end of day review", or "what should I automate".
 allowed-tools: Read, Write, Grep, Bash(find:*), Bash(date:*), Bash(mkdir:*), Bash(wc:*), Bash(awk:*), Bash(sed:*), Bash(sort:*), Skill(*)
 ---
 
@@ -117,7 +117,10 @@ Look for these signals:
 
 Print: `→ Writing scout notes to ~/Recall/Scout/...`
 
-Write to: `~/Recall/Scout/{slug}.md`. Append if exists, create if not.
+Write to: `~/Recall/Scout/{slug}.md`. Before writing, check if the file already exists:
+
+- If it exists → print `  ⚠ {slug}.md already flagged — appending new observation` then append
+- If it does not exist → create it
 
 ```
 # {candidate title}
@@ -151,12 +154,15 @@ Before printing the summary, confirm each of the following. For any item not met
 
 - [ ] Every session or summary file found was either scanned for patterns or explicitly skipped with a warning
 - [ ] Every automation candidate found has a written scout note in `~/Recall/Scout/`
-- [ ] `~/Recall/.scout_processed` was updated
+- [ ] `~/Recall/.scout_processed` was either updated (clean run) or intentionally left unchanged (errors occurred)
 
 ## Step 7 — Log and print summary
 
-Write current timestamp to `~/Recall/.scout_processed`.
+Only write `~/Recall/.scout_processed` if no errors occurred in Steps 4 or 5. If any errors occurred, leave it at its previous value so the next run reprocesses the affected sessions.
+
+If updating: write current timestamp to `~/Recall/.scout_processed`.
 Print: `  ✓ Updated ~/Recall/.scout_processed`
+If skipping due to errors: print `  ⚠ .scout_processed not updated — errors occurred, next run will reprocess affected sessions`
 
 Append to `~/Recall/schedule.log`:
 
