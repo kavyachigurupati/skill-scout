@@ -1,12 +1,28 @@
 #!/usr/bin/env python3
 """
-scout.py — runs the /scout skill non-interactively via the Claude Agent SDK.
-Uses your existing Claude Code subscription. No API key required.
+scout.py
+--------
+Headless runner for the /scout skill. Called by schedule.sh every night.
+
+What it does:
+  - Reads .claude/skills/scout/SKILL.md (the skill definition)
+  - Sends it to Claude via the Agent SDK with bypassPermissions
+  - Claude scans sessions for automation patterns and writes candidate
+    notes into ~/Recall/Scout/
+
+Why this exists:
+  The /scout skill normally runs inside an interactive Claude Code session.
+  This script lets it run unattended via cron — no UI, no permission popups.
+  recall's Step 10 adaptive trigger can't fire headlessly (Skill(*) doesn't
+  work via the Agent SDK), so schedule.sh calls this explicitly after recall.
 
 Usage:
-    python3 scout.py [today|yesterday|this week|last week|YYYY-MM-DD]
+  python3 scout.py [today|yesterday|this week|last week|YYYY-MM-DD]
+  Defaults to "today" if no argument given.
 
-Runs unattended — no permission popups.
+Requirements:
+  pip install claude-code
+  Claude Code must be installed and authenticated.
 """
 
 import asyncio
@@ -20,33 +36,31 @@ except ImportError:
     sys.exit(1)
 
 
-# ── load skill prompt from SKILL.md ─────────────────────────────────────────
-
 SKILL_MD = Path(__file__).parent / ".claude" / "skills" / "scout" / "SKILL.md"
 
+
 def load_prompt(time_range: str) -> str:
+    """Read SKILL.md, strip frontmatter, inject the time range argument."""
     if not SKILL_MD.exists():
         print(f"ERROR: SKILL.md not found at {SKILL_MD}")
         sys.exit(1)
 
     content = SKILL_MD.read_text()
 
-    # Strip frontmatter (--- ... ---)
+    # Strip YAML frontmatter (--- ... ---)
     if content.startswith("---"):
         end = content.index("---", 3)
         content = content[end + 3:].strip()
 
-    # Inject the time range argument
     return content.replace("$ARGUMENTS", time_range)
 
-
-# ── main ────────────────────────────────────────────────────────────────────
 
 async def run_scout(time_range: str) -> None:
     prompt = load_prompt(time_range)
 
     options = ClaudeCodeOptions(
         cwd=str(Path.home()),
+        # Skill(*) from SKILL.md is omitted — skills can't be invoked headlessly.
         allowed_tools=["Read", "Write", "Grep", "Bash"],
         permission_mode="bypassPermissions",
         max_turns=40,

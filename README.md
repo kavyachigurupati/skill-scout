@@ -53,13 +53,9 @@ flowchart LR
 git clone https://github.com/YOUR_USERNAME/skill-scout.git
 cd skill-scout
 bash setup.sh
-
-# Install skills globally
-mkdir -p ~/.claude/skills/recall ~/.claude/skills/scout ~/.claude/skills/recall-lint
-cp .claude/skills/recall/SKILL.md ~/.claude/skills/recall/SKILL.md
-cp .claude/skills/scout/SKILL.md ~/.claude/skills/scout/SKILL.md
-cp .claude/skills/recall-lint/SKILL.md ~/.claude/skills/recall-lint/SKILL.md
 ```
+
+`setup.sh` does everything: installs the SDK, creates `~/Recall/`, copies skills to `~/.claude/skills/`, and installs the cron job.
 
 ---
 
@@ -81,6 +77,17 @@ Sessions are mapped to projects by checking in order: working directory path →
 
 ---
 
-## Automation (optional)
+## Automation
 
-`recall.py` runs `/recall` + `/scout` unattended via the Claude Agent SDK. `setup.sh` installs a nightly cron job (requires Terminal Full Disk Access in System Settings → Privacy & Security).
+Three files power the nightly cron run:
+
+| File | Role |
+|------|------|
+| `setup.sh` | One-time installer — run once after cloning |
+| `schedule.sh` | Cron entry point — fires at 6pm, skips if no new sessions |
+| `recall.py` / `scout.py` | Headless skill runners — called by schedule.sh |
+
+`recall.py` and `scout.py` read their `SKILL.md` at runtime via the Agent SDK (`bypassPermissions`) — no popups, no interaction.
+
+**Required for cron:** grant Terminal Full Disk Access so cron can read `~/.claude/projects/`:
+`System Settings → Privacy & Security → Full Disk Access`
