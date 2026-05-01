@@ -30,9 +30,9 @@ import sys
 from pathlib import Path
 
 try:
-    from claude_code_sdk import query, ClaudeCodeOptions
+    from claude_agent_sdk import query, ClaudeAgentOptions as ClaudeCodeOptions
 except ImportError:
-    print("ERROR: claude-code SDK not installed. Run: pip install claude-code")
+    print("ERROR: claude-agent-sdk not installed. Run: pip install claude-agent-sdk")
     sys.exit(1)
 
 

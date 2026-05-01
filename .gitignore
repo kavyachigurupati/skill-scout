@@ -1,3 +1,8 @@
 # Runtime output — lives in ~/Recall/, not in repo
 .processed
 schedule.log
+
+# Virtual environment
+skill-scout-env/
+.venv/
+

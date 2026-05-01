@@ -35,8 +35,8 @@ fi
 
 echo "[$TODAY $(date +%H:%M)] Sessions found — running recall then scout" >> "$LOG"
 
-python3 "$REPO_DIR/recall.py" today >> "$LOG" 2>&1
+"$REPO_DIR/skill-scout-env/bin/python3.10" "$REPO_DIR/recall.py" today >> "$LOG" 2>&1
 echo "[$TODAY $(date +%H:%M)] recall done" >> "$LOG"
 
-python3 "$REPO_DIR/scout.py" today >> "$LOG" 2>&1
+"$REPO_DIR/skill-scout-env/bin/python3.10" "$REPO_DIR/scout.py" today >> "$LOG" 2>&1
 echo "[$TODAY $(date +%H:%M)] scout done" >> "$LOG"
