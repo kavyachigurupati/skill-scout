@@ -122,3 +122,10 @@ Three files power the nightly cron run:
 | `recall.py` / `scout.py` | Headless skill runners — called by schedule.sh |
 
 `recall.py` and `scout.py` read their `SKILL.md` at runtime via the Agent SDK (`bypassPermissions`) — no popups, no interaction. Uses your Claude subscription — no separate API key needed.
+
+---
+
+## References
+
+- [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — Andrej Karpathy's pattern for compounding LLM-maintained knowledge bases, which inspired `~/Recall/`
+- [claude-memory-compiler](https://github.com/coleam00/claude-memory-compiler) — reference for Agent SDK subscription auth and `.claude/settings.json` permissions
