@@ -2,7 +2,7 @@
 
 > Three Claude Code skills that turn your daily sessions into a searchable knowledge vault and surface what's worth automating.
 
-No external dependencies. No config. Works from any project.
+No config. Works from any project. Requires Python 3.10+ and a Claude Max/Team/Enterprise subscription.
 
 ---
 
@@ -49,24 +49,58 @@ flowchart LR
 
 ## Setup
 
+**Prerequisites:** Python 3.10+, Claude Code installed, Claude Max/Team/Enterprise subscription.
+
 ```bash
 git clone https://github.com/YOUR_USERNAME/skill-scout.git
 cd skill-scout
+```
+
+**1. Create the venv and install the SDK:**
+
+```bash
+python3.10 -m venv skill-scout-env
+skill-scout-env/bin/pip install claude-agent-sdk
+```
+
+**2. Run the one-time installer:**
+
+```bash
 bash setup.sh
 ```
 
-`setup.sh` does everything: installs the SDK, creates `~/Recall/`, copies skills to `~/.claude/skills/`, and installs the cron job.
+This creates `~/Recall/`, copies all three skills to `~/.claude/skills/`, and installs the 6pm cron job.
+
+**3. Grant Terminal Full Disk Access** so cron can read `~/.claude/projects/`:
+`System Settings → Privacy & Security → Full Disk Access → add Terminal`
 
 ---
 
 ## Usage
 
+### Interactive (inside a Claude Code session)
+
 ```
 /recall today         ← log today's sessions
+/recall yesterday     ← log yesterday's sessions
 /recall this week     ← catch up on the week
 /recall 2026-04-11    ← specific date
 /scout today          ← scan for automation opportunities
+/scout this week      ← scan the full week for patterns
 /recall-lint          ← health-check the vault
+```
+
+### Headless (terminal, no Claude Code session needed)
+
+```bash
+# recall only
+skill-scout-env/bin/python3.10 recall.py today
+skill-scout-env/bin/python3.10 recall.py yesterday
+skill-scout-env/bin/python3.10 recall.py "this week"
+
+# recall + scout together (recommended)
+skill-scout-env/bin/python3.10 recall.py yesterday && skill-scout-env/bin/python3.10 scout.py yesterday
+skill-scout-env/bin/python3.10 recall.py "this week" && skill-scout-env/bin/python3.10 scout.py "this week"
 ```
 
 ---
@@ -87,7 +121,4 @@ Three files power the nightly cron run:
 | `schedule.sh` | Cron entry point — fires at 6pm, skips if no new sessions |
 | `recall.py` / `scout.py` | Headless skill runners — called by schedule.sh |
 
-`recall.py` and `scout.py` read their `SKILL.md` at runtime via the Agent SDK (`bypassPermissions`) — no popups, no interaction.
-
-**Required for cron:** grant Terminal Full Disk Access so cron can read `~/.claude/projects/`:
-`System Settings → Privacy & Security → Full Disk Access`
+`recall.py` and `scout.py` read their `SKILL.md` at runtime via the Agent SDK (`bypassPermissions`) — no popups, no interaction. Uses your Claude subscription — no separate API key needed.
