@@ -5,4 +5,8 @@ schedule.log
 # Virtual environment
 skill-scout-env/
 .venv/
+.ven/
+
+# OS
+.DS_Store
 
