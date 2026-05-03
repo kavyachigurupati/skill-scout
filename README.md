@@ -76,9 +76,11 @@ This creates `~/Recall/`, copies all three skills to `~/.claude/skills/`, and in
 
 ---
 
-## Usage
+## Three ways to run
 
-### Interactive (inside a Claude Code session)
+### 1. As a Claude Code skill (interactive)
+
+The simplest way — run directly inside any Claude Code session, no setup beyond `setup.sh`.
 
 ```
 /recall today         ← log today's sessions
@@ -90,38 +92,48 @@ This creates `~/Recall/`, copies all three skills to `~/.claude/skills/`, and in
 /recall-lint          ← health-check the vault
 ```
 
-### Headless (terminal, no Claude Code session needed)
+### 2. Headless from the terminal
+
+Run `recall.py` and `scout.py` directly — no Claude Code session needed. Useful for catching up on a specific day or week without opening the IDE.
 
 ```bash
-# recall only
+# log a specific time range
 skill-scout-env/bin/python3.10 recall.py today
 skill-scout-env/bin/python3.10 recall.py yesterday
 skill-scout-env/bin/python3.10 recall.py "this week"
+skill-scout-env/bin/python3.10 recall.py "last week"
+skill-scout-env/bin/python3.10 recall.py 2026-04-11
 
 # recall + scout together (recommended)
 skill-scout-env/bin/python3.10 recall.py yesterday && skill-scout-env/bin/python3.10 scout.py yesterday
 skill-scout-env/bin/python3.10 recall.py "this week" && skill-scout-env/bin/python3.10 scout.py "this week"
 ```
 
+### 3. Cron job (fully automated, runs nightly)
+
+`setup.sh` installs a cron job that fires at 6pm every day. It checks for new sessions and runs recall + scout automatically — nothing to remember.
+
+**If you want to set it up manually or change the time:**
+
+```bash
+crontab -e
+```
+
+Add this line (replace `/path/to/skill-scout` with your actual path):
+
+```
+0 18 * * * /path/to/skill-scout/schedule.sh
+```
+
+Change `18` to whatever hour you prefer (24h format). `schedule.sh` skips silently if there are no new sessions that day, so it's safe to run at any time.
+
+All output is logged to `~/Recall/schedule.log`.
+
 ---
 
 ## Project detection
 
 Sessions are mapped to projects by checking in order: working directory path → git remote URL → session content → folder name fallback. Sessions from `DEV_MODE/skill-scout/` and `DEV_MODE/ai_digest/` go into separate vault folders automatically.
-
----
-
-## Automation
-
-Three files power the nightly cron run:
-
-| File | Role |
-|------|------|
-| `setup.sh` | One-time installer — run once after cloning |
-| `schedule.sh` | Cron entry point — fires at 6pm, skips if no new sessions |
-| `recall.py` / `scout.py` | Headless skill runners — called by schedule.sh |
-
-`recall.py` and `scout.py` read their `SKILL.md` at runtime via the Agent SDK (`bypassPermissions`) — no popups, no interaction. Uses your Claude subscription — no separate API key needed.
 
 ---
 
