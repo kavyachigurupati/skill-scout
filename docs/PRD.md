@@ -4,6 +4,48 @@
 
 ---
 
+## What We Actually Built
+
+The original plan described a multi-file Python pipeline making direct Claude API calls — `ingest.py`, `classify.py`, `summarize.py`, `write.py`, templates folder, `config.yaml`. None of that was built. What shipped is simpler and more interesting.
+
+**The shift: API → Agent SDK**
+
+Midway through planning, we dropped the direct API approach entirely. The original design would have meant writing and maintaining all the logic ourselves — prompt templates, session parsing, Obsidian write logic, classification schemas. Every change would mean touching Python code.
+
+Instead, we moved to the [Claude Agent SDK](https://github.com/anthropics/claude-code). The insight was that Claude Code skills (`.claude/skills/*.md`) already define the full recall and scout logic as readable markdown — they just needed a headless runner to fire them without a live session. No extra API costs, no separate pipeline to maintain, no templates to keep in sync with behavior.
+
+**What actually shipped**
+
+```
+skill-scout/
+├── scout.py              ← thin headless runner for the /scout skill
+├── recall.py             ← thin headless runner for the /recall skill
+├── schedule.sh           ← cron wrapper that calls both nightly
+├── setup.sh              ← one-time setup
+└── .claude/
+    └── skills/
+        ├── scout/SKILL.md    ← all scout logic lives here
+        ├── recall/SKILL.md   ← all recall logic lives here
+        └── recall-lint/SKILL.md
+```
+
+`scout.py` and `recall.py` do the same thing: load the corresponding `SKILL.md`, strip frontmatter, inject the time range argument, and run it via the Agent SDK with `bypassPermissions`. Claude does the rest — reads sessions, writes to Obsidian, no permission prompts.
+
+**What changed from the original plan**
+
+| Original plan | What shipped |
+|---|---|
+| Direct Claude API (`anthropic` SDK) | Agent SDK (`claude-agent-sdk`) |
+| Logic in Python files | Logic in SKILL.md files |
+| `ingest.py`, `classify.py`, `summarize.py`, `write.py` | Deleted — Claude handles all of it |
+| `config.yaml` for vault path | Configured inside SKILL.md |
+| No scheduling (non-goal) | `schedule.sh` added for nightly cron |
+| Templates folder | Replaced by skill prompt structure |
+
+The tradeoff: less explicit control over individual steps, but dramatically less code to maintain. The skill markdown files are readable, editable, and already versioned here. If the behavior needs to change, you edit the skill — not a Python module.
+
+---
+
 ## What this is
 
 Every day you work in Claude Code, patterns build up that you never act on. You look up the same docs twice. You fix the same class of bug. You set up the same boilerplate. You have a conversation that should have been a script or an MCP. None of it gets captured, so none of it gets automated.
